@@ -10,6 +10,7 @@ import com.alebarre.cadastro_clientes.repository.ClienteRepository;
 
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ValidationException;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -48,6 +49,7 @@ public class ClienteService {
         return toResponse(clienteRepository.save(c));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @Transactional
     public ClienteResponseDTO update(Long id, ClienteRequestDTO req) {
         Cliente c = clienteRepository.findById(id).orElseThrow(() -> new EntityNotFoundException("Cliente não encontrado"));
@@ -60,6 +62,7 @@ public class ClienteService {
         return toResponse(clienteRepository.save(c));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @Transactional
     public void delete(Long id) {
         if (!clienteRepository.existsById(id)) throw new EntityNotFoundException("Cliente não encontrado");

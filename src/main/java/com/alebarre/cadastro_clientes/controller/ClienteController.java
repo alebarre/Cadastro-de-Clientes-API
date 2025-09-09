@@ -6,6 +6,7 @@ import com.alebarre.cadastro_clientes.DTO.ClienteSummaryDTO;
 import com.alebarre.cadastro_clientes.service.ClienteService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
@@ -31,11 +32,13 @@ public class ClienteController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ClienteResponseDTO update(@PathVariable Long id, @RequestBody @Valid ClienteRequestDTO req) {
         return service.update(id, req);
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         service.delete(id);
         return ResponseEntity.noContent().build();

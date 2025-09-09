@@ -19,7 +19,10 @@ public class AppUser {
 
     @NotBlank
     private String password; // BCrypt
-
     private String roles = "ROLE_USER, ROLE_ADMIN";
+    private boolean enabled = true; // default antigo
+    public boolean isEnabled() { return enabled; }
+    public void setEnabled(boolean enabled) { this.enabled = enabled; }
+
 }
 
