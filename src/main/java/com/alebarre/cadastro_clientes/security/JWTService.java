@@ -6,6 +6,7 @@ import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import java.security.Key;
+import java.time.Duration;
 import java.util.Date;
 import java.util.Map;
 import java.util.function.Function;
@@ -15,10 +16,14 @@ public class JWTService {
     private final Key key;
     private final long expirationMs;
 
-    public JWTService(@Value("${jwt.secret}") String secret,
-                      @Value("${jwt.expiration-ms}") long expirationMs) {
+    public JWTService(
+            @Value("${jwt.secret}") String secret,
+            // default PT1H evita “0 ms” se propriedade não estiver setada
+            @Value("${jwt.expiration:PT1H}") Duration expiration
+    ) {
         this.key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(secret));
-        this.expirationMs = expirationMs;
+        this.expirationMs = expiration.toMillis();
+        System.out.println("[JwtService] expirationMs=" + this.expirationMs); // log de diagnóstico
     }
 
     public String extractUsername(String token) {
@@ -31,11 +36,13 @@ public class JWTService {
         return resolver.apply(claims);
     }
 
-    public String generateToken(String username, String roles) {
+    public long getExpirationSeconds() { return expirationMs / 1000; }
+
+    public String generateToken(String username, String rolesCsv) {
         long now = System.currentTimeMillis();
         return Jwts.builder()
                 .setSubject(username)
-                .addClaims(Map.of("roles", roles))
+                .addClaims(Map.of("roles", rolesCsv))
                 .setIssuedAt(new Date(now))
                 .setExpiration(new Date(now + expirationMs))
                 .signWith(key, SignatureAlgorithm.HS256)
