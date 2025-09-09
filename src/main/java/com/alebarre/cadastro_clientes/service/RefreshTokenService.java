@@ -17,7 +17,7 @@ public class RefreshTokenService {
     private final SecureRandom random = new SecureRandom();
 
     public RefreshTokenService(RefreshTokenRepository repo,
-                               @Value("${app.refresh.ttl-days:7}") int ttlDays) {
+                               @Value("${app.refresh.ttl-seconds:604800}") int ttlDays) {
         this.repo = repo;
         this.ttlDays = ttlDays;
     }
