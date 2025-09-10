@@ -22,9 +22,10 @@ public class ApiExceptionHandler {
     }
 
     @ExceptionHandler(ValidationException.class)
-    public ResponseEntity<Problem> validation(ValidationException ex) {
-        var body = new Problem(400, "Validation Error", ex.getMessage(), Instant.now(), null);
-        return ResponseEntity.badRequest().body(body);
+    public jakarta.validation.ValidationException validation(String msg, Map<String,String> fieldErrors) {
+        // seu GlobalExceptionHandler já mapeia ValidationException para {status,error,message,fieldErrors}
+        // se preferir, crie uma BusinessException que carrega fieldErrors
+        return new jakarta.validation.ValidationException(msg + "|" + fieldErrors.toString());
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

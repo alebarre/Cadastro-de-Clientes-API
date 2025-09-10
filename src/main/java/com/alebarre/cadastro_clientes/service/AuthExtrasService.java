@@ -3,6 +3,7 @@ package com.alebarre.cadastro_clientes.service;
 import com.alebarre.cadastro_clientes.domain.AppUser;
 import com.alebarre.cadastro_clientes.domain.PasswordResetToken;
 import com.alebarre.cadastro_clientes.domain.VerificationToken;
+import com.alebarre.cadastro_clientes.exception.ApiExceptionHandler;
 import com.alebarre.cadastro_clientes.repository.AppUserRepository;
 import com.alebarre.cadastro_clientes.repository.PasswordResetTokenRepository;
 import com.alebarre.cadastro_clientes.repository.VerificationTokenRepository;
@@ -13,6 +14,8 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Map;
 import java.util.Random;
 
 @Service
@@ -22,6 +25,7 @@ public class AuthExtrasService {
     private final PasswordResetTokenRepository rRepo;
     private final EmailService mail;
     private final PasswordEncoder encoder;
+    private final ApiExceptionHandler apiExceptionHandler;
 
     private final int signupTtlMin;
     private final int resetTtlMin;
@@ -29,20 +33,24 @@ public class AuthExtrasService {
 
     private final int cooldownSeconds;
 
+    private final PasswordPolicyService policy;
+
     public AuthExtrasService(
             AppUserRepository userRepo, VerificationTokenRepository vRepo, PasswordResetTokenRepository rRepo,
-            EmailService mail, PasswordEncoder encoder,
+            EmailService mail, PasswordEncoder encoder, ApiExceptionHandler apiExceptionHandler,
             @Value("${app.signup.code.ttl-min:15}") int signupTtlMin,
             @Value("${app.reset.code.ttl-min:15}") int resetTtlMin,
             @Value("${app.reset.max-attempts:5}") int resetMaxAttempts,
-            @Value("${app.code.cooldown-seconds:60}") int cooldownSeconds
+            @Value("${app.code.cooldown-seconds:60}") int cooldownSeconds, PasswordPolicyService policy
     ) {
         this.userRepo = userRepo; this.vRepo = vRepo; this.rRepo = rRepo;
         this.mail = mail; this.encoder = encoder;
+        this.apiExceptionHandler = apiExceptionHandler;
         this.signupTtlMin = signupTtlMin;
         this.resetTtlMin = resetTtlMin;
         this.resetMaxAttempts = resetMaxAttempts;
         this.cooldownSeconds = cooldownSeconds;
+        this.policy = policy;
     }
 
     private String genCode6() {
@@ -51,6 +59,10 @@ public class AuthExtrasService {
 
     // ===== Register =====
     public void register(String email, String rawPassword) {
+        var ruleErrors = policy.validateRules(rawPassword);
+        if (!ruleErrors.isEmpty()) {
+            throw apiExceptionHandler.validation("Senha inválida", Map.of("password", String.join(" | ", ruleErrors)));
+        }
         if (userRepo.findByUsername(email).isPresent())
             throw new ValidationException("Email já cadastrado");
 
@@ -144,6 +156,13 @@ public class AuthExtrasService {
     }
 
     public void reset(String email, String code, String newPassword) {
+        // ... valida código ...
+        var ruleErrors = policy.validateRules(newPassword);
+        var historyErrors = policy.validateHistory(email, newPassword);
+        var all = new ArrayList<String>(); all.addAll(ruleErrors); all.addAll(historyErrors);
+        if (!all.isEmpty()) {
+            throw apiExceptionHandler.validation("Senha inválida", Map.of("newPassword", String.join(" | ", all)));
+        }
         var tok = rRepo.findTopByEmailAndUsedFalseOrderByIdDesc(email)
                 .orElseThrow(() -> new ValidationException("Código não solicitado"));
 
@@ -156,6 +175,8 @@ public class AuthExtrasService {
 
         var u = userRepo.findByUsername(email)
                 .orElseThrow(() -> new ValidationException("Usuário não encontrado"));
+        // grava histórico ANTES de trocar
+        policy.record(email, u.getPassword());
         u.setPassword(encoder.encode(newPassword));
         userRepo.save(u);
 
