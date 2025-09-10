@@ -7,6 +7,7 @@ import com.alebarre.cadastro_clientes.repository.AppUserRepository;
 import com.alebarre.cadastro_clientes.repository.PasswordResetTokenRepository;
 import com.alebarre.cadastro_clientes.repository.VerificationTokenRepository;
 import jakarta.validation.ValidationException;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -26,18 +27,22 @@ public class AuthExtrasService {
     private final int resetTtlMin;
     private final int resetMaxAttempts;
 
+    private final int cooldownSeconds;
+
     public AuthExtrasService(
             AppUserRepository userRepo, VerificationTokenRepository vRepo, PasswordResetTokenRepository rRepo,
             EmailService mail, PasswordEncoder encoder,
-            @org.springframework.beans.factory.annotation.Value("${app.signup.code.ttl-min:15}") int signupTtlMin,
-            @org.springframework.beans.factory.annotation.Value("${app.reset.code.ttl-min:15}") int resetTtlMin,
-            @org.springframework.beans.factory.annotation.Value("${app.reset.max-attempts:5}") int resetMaxAttempts
+            @Value("${app.signup.code.ttl-min:15}") int signupTtlMin,
+            @Value("${app.reset.code.ttl-min:15}") int resetTtlMin,
+            @Value("${app.reset.max-attempts:5}") int resetMaxAttempts,
+            @Value("${app.code.cooldown-seconds:60}") int cooldownSeconds
     ) {
         this.userRepo = userRepo; this.vRepo = vRepo; this.rRepo = rRepo;
         this.mail = mail; this.encoder = encoder;
         this.signupTtlMin = signupTtlMin;
         this.resetTtlMin = resetTtlMin;
         this.resetMaxAttempts = resetMaxAttempts;
+        this.cooldownSeconds = cooldownSeconds;
     }
 
     private String genCode6() {
@@ -68,6 +73,44 @@ public class AuthExtrasService {
         vRepo.save(tok);
 
         mail.sendHtml(email, "Verifique seu cadastro", buildVerificationEmail(code, signupTtlMin));
+    }
+
+    // --- RESEND VERIFY ---
+    public void resendVerification(String email) {
+        // precisa existir o usuário (pode estar disabled)
+        userRepo.findByUsername(email).orElseThrow(() -> new jakarta.validation.ValidationException("Email não cadastrado"));
+
+        var last = vRepo.findTopByEmailAndUsedFalseOrderByIdDesc(email).orElse(null);
+        if (last != null) {
+            long since = java.time.Duration.between(last.getCreatedAt(), Instant.now()).getSeconds();
+            if (since < cooldownSeconds) {
+                long remaining = cooldownSeconds - since;
+                throw tooManyRequests("Aguarde " + remaining + "s para reenviar.");
+            }
+            // invalida o token anterior para não deixar dois válidos
+            last.setUsed(true);
+            vRepo.save(last);
+        }
+        // emite novo token e envia
+        sendVerification(email);
+    }
+
+    // --- RESEND RESET ---
+    public void resendReset(String email) {
+        userRepo.findByUsername(email).orElseThrow(() -> new jakarta.validation.ValidationException("Email não cadastrado"));
+
+        var last = rRepo.findTopByEmailAndUsedFalseOrderByIdDesc(email).orElse(null);
+        if (last != null) {
+            long since = java.time.Duration.between(last.getCreatedAt(), Instant.now()).getSeconds();
+            if (since < cooldownSeconds) {
+                long remaining = cooldownSeconds - since;
+                throw tooManyRequests("Aguarde " + remaining + "s para reenviar.");
+            }
+            last.setUsed(true);
+            rRepo.save(last);
+        }
+        // emite novo token e envia
+        forgot(email); // reaproveita fluxo que já cria e manda email
     }
 
     public void verify(String email, String code) {
@@ -155,6 +198,16 @@ public class AuthExtrasService {
       </body>
     </html>
     """.formatted(code, ttlMin);
+    }
+
+    private RuntimeException tooManyRequests(String msg) {
+        // você pode ter um @ControllerAdvice para converter isso em HTTP 429
+        return new TooManyRequestsException(msg);
+    }
+
+    // exception simples
+    public static class TooManyRequestsException extends RuntimeException {
+        public TooManyRequestsException(String m) { super(m); }
     }
 
 }

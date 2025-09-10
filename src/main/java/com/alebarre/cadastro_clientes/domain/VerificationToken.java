@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.Instant;
 
@@ -20,5 +21,14 @@ public class VerificationToken {
     @Column(nullable=false) private String code; // 6 dígitos
     @Column(nullable=false) private Instant expiresAt;
     @Column(nullable=false) private boolean used = false;
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false,
+            columnDefinition = "datetime(6) default CURRENT_TIMESTAMP(6)") // cria do zero
+    private Instant createdAt;
+
+    @PrePersist
+    void prePersist() {
+        if (createdAt == null) createdAt = Instant.now();
+    }
 
 }

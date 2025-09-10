@@ -1,5 +1,6 @@
 package com.alebarre.cadastro_clientes.exception;
 
+import com.alebarre.cadastro_clientes.service.AuthExtrasService;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ValidationException;
 import org.springframework.http.*;
@@ -32,5 +33,13 @@ public class ApiExceptionHandler {
         ex.getBindingResult().getFieldErrors().forEach(err -> fields.put(err.getField(), err.getDefaultMessage()));
         var body = new Problem(400, "Validation Error", "Campos inválidos", Instant.now(), fields);
         return ResponseEntity.badRequest().body(body);
+    }
+
+    @ExceptionHandler(AuthExtrasService.TooManyRequestsException.class)
+    public ResponseEntity<?> handleTooMany(AuthExtrasService.TooManyRequestsException ex) {
+        return ResponseEntity.status(429).body(Map.of(
+                "status", 429, "error", "Too Many Requests", "message", ex.getMessage(),
+                "timestamp", java.time.Instant.now().toString()
+        ));
     }
 }

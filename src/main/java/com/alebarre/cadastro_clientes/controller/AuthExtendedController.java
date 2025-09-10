@@ -1,9 +1,6 @@
 package com.alebarre.cadastro_clientes.controller;
 
-import com.alebarre.cadastro_clientes.DTO.ForgotRequestDTO;
-import com.alebarre.cadastro_clientes.DTO.RegisterRequestDTO;
-import com.alebarre.cadastro_clientes.DTO.ResetRequestDTO;
-import com.alebarre.cadastro_clientes.DTO.VerifyRequestDTO;
+import com.alebarre.cadastro_clientes.DTO.*;
 import com.alebarre.cadastro_clientes.service.AuthExtrasService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -28,6 +25,12 @@ public class AuthExtendedController {
         return ResponseEntity.ok(Map.of("message","Cadastro verificado. Você já pode entrar."));
     }
 
+    @PostMapping("/resend-verify")
+    public ResponseEntity<?> resendVerify(@RequestBody ResendVerifyRequestDTO r) {
+        svc.resendVerification(r.email());
+        return ResponseEntity.ok(Map.of("message","Código reenviado com sucesso."));
+    }
+
     @PostMapping("/forgot")
     public ResponseEntity<?> forgot(@RequestBody ForgotRequestDTO r) {
         svc.forgot(r.email());
@@ -38,6 +41,12 @@ public class AuthExtendedController {
     public ResponseEntity<?> reset(@RequestBody ResetRequestDTO r) {
         svc.reset(r.email(), r.code(), r.newPassword());
         return ResponseEntity.ok(Map.of("message","Senha redefinida com sucesso."));
+    }
+
+    @PostMapping("/resend-reset")
+    public ResponseEntity<?> resendReset(@RequestBody ResendResetRequestDTO r) {
+        svc.resendReset(r.email());
+        return ResponseEntity.ok(Map.of("message","Código reenviado com sucesso."));
     }
 }
 
