@@ -31,7 +31,13 @@ public class Cliente {
     @OneToMany(mappedBy = "cliente", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Endereco> enderecos = new ArrayList<>();
 
-    // getters/setters
+    @ManyToMany
+    @JoinTable(
+            name = "cliente_modalidade",
+            joinColumns = @JoinColumn(name = "cliente_id"),
+            inverseJoinColumns = @JoinColumn(name = "modalidade_id")
+    )
+    private Set<Modalidade> modalidades = new HashSet<>();
 
     public void setEnderecos(List<Endereco> novos) {
         this.enderecos.clear();

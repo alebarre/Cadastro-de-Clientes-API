@@ -8,5 +8,6 @@ public record ClienteResponseDTO(
         String email,
         String telefone,
         String cpf,
-        List<EnderecoDTO> enderecos
+        List<EnderecoDTO> enderecos,
+        List<ModalidadeDTO> modalidades
 ) {}

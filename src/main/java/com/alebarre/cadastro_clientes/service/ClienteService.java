@@ -1,9 +1,6 @@
 package com.alebarre.cadastro_clientes.service;
 
-import com.alebarre.cadastro_clientes.DTO.ClienteRequestDTO;
-import com.alebarre.cadastro_clientes.DTO.ClienteResponseDTO;
-import com.alebarre.cadastro_clientes.DTO.ClienteSummaryDTO;
-import com.alebarre.cadastro_clientes.DTO.EnderecoDTO;
+import com.alebarre.cadastro_clientes.DTO.*;
 import com.alebarre.cadastro_clientes.domain.Cliente;
 import com.alebarre.cadastro_clientes.domain.Endereco;
 import com.alebarre.cadastro_clientes.repository.ClienteRepository;
@@ -15,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class ClienteService {
@@ -24,16 +22,28 @@ public class ClienteService {
 
     public List<ClienteSummaryDTO> list() {
         return clienteRepository.findAll().stream().map(c -> {
-            // extrai até 2 cidades distintas
-            List<String> unicas = c.getEnderecos().stream()
-                    .map(Endereco::getCidade)
-                    .filter(Objects::nonNull)
-                    .map(String::trim)
-                    .filter(s -> !s.isEmpty())
-                    .distinct()
-                    .limit(2)
-                    .toList();
-            return new ClienteSummaryDTO(c.getId(), c.getNome(), c.getEmail(), c.getTelefone(), unicas);
+            // até 2 cidades distintas, concatenadas por " | "
+            String enderecosResumo =
+                    (c.getEnderecos() == null ? java.util.stream.Stream.<String>empty()
+                            : c.getEnderecos().stream()
+                            .map(e -> e.getCidade())
+                            .filter(Objects::nonNull)
+                            .map(String::trim)
+                            .filter(s -> !s.isEmpty())
+                            .distinct()
+                            .limit(2))
+                            .collect(Collectors.joining(" | "));
+
+            int quantidadeModalidades = (c.getModalidades() == null) ? 0 : c.getModalidades().size();
+
+            return new ClienteSummaryDTO(
+                    c.getId(),
+                    c.getNome(),
+                    c.getEmail(),
+                    c.getTelefone(),
+                    enderecosResumo,
+                    quantidadeModalidades
+            );
         }).toList();
     }
 
@@ -69,6 +79,20 @@ public class ClienteService {
         clienteRepository.deleteById(id);
     }
 
+    @Transactional(readOnly = true)
+    public List<ClienteSummaryDTO> listarSummaries() {
+        return clienteRepository.findAll().stream()
+                .map(ClienteSummaryDTO::fromEntity)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public ClienteCardDTO obterCard(Long id) {
+        var c = clienteRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Cliente não encontrado"));
+        return ClienteCardDTO.fromEntity(c);
+    }
+
     // ===== mapeamento =====
     private Cliente fromRequest(Cliente c, ClienteRequestDTO req) {
         if (req.enderecos() == null || req.enderecos().isEmpty())
@@ -99,10 +123,14 @@ public class ClienteService {
 
     private ClienteResponseDTO toResponse(Cliente c) {
         var ends = c.getEnderecos().stream().map(e ->
-                new EnderecoDTO(e.getId(), e.getLogradouro(), e.getNumero(), e.getComplemento(),
-                        e.getBairro(), e.getCidade(), e.getUf(), e.getCep())
+                new EnderecoDTO(e.getId(), e.getCidade(), e.getLogradouro(), e.getUf(), e.getBairro(), e.getNumero(), e.getComplemento(),
+                        e.getCep())
         ).toList();
 
-        return new ClienteResponseDTO(c.getId(), c.getNome(), c.getEmail(), c.getTelefone(), c.getCpf(), ends);
+        var mods = c.getModalidades().stream().map(e ->
+                new ModalidadeDTO(e.getId(), e.getNome(), e.getDescricao(), e.getValor())
+        ).toList();
+
+        return new ClienteResponseDTO(c.getId(), c.getNome(), c.getEmail(), c.getTelefone(), c.getCpf(), ends, mods);
     }
 }

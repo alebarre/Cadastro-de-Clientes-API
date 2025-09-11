@@ -1,16 +1,45 @@
 package com.alebarre.cadastro_clientes.DTO;
 
-import jakarta.validation.constraints.*;
-import lombok.Getter;
-import lombok.Setter;
+import com.alebarre.cadastro_clientes.domain.Endereco;
 
+
+// EnderecoDTO.java
 public record EnderecoDTO(
         Long id,
-        @NotBlank String logradouro,
-        @NotBlank String numero,
+        String cidade,
+        String logradouro,
+        String uf,
+        String bairro,
+        String numero,
         String complemento,
-        @NotBlank String bairro,
-        @NotBlank String cidade,
-        @NotBlank @Size(min=2,max=2) String uf,
-        @NotBlank @Pattern(regexp="\\d{8}") String cep
-) {}
+        String cep
+) {
+    public static EnderecoDTO fromEntity(Endereco e) {
+        return new EnderecoDTO(
+                e.getId(),
+                e.getCidade(),
+                e.getLogradouro(),
+                e.getUf(),
+                e.getBairro(),
+                e.getNumero(),
+                e.getComplemento(),
+                e.getCep()
+        );
+    }
+
+    public Endereco toEntity() {
+        Endereco e = new Endereco();
+        e.setId(this.id);
+        e.setCep(this.cep);
+        e.setLogradouro(this.logradouro);
+        e.setNumero(this.numero);
+        e.setComplemento(this.complemento);
+        e.setBairro(this.bairro);
+        e.setCidade(this.cidade);
+        e.setUf(this.uf);
+        return e;
+    }
+
+
+}
+
