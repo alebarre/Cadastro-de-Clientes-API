@@ -13,5 +13,7 @@ public record ClienteRequestDTO(
         @Pattern(regexp="\\d{11}", message="CPF deve ter 11 dígitos")
         String cpf,
         @Size(max=2, message="No máximo 2 endereços")
-        @NotNull List<@Valid EnderecoDTO> enderecos
+        @NotNull List<@Valid EnderecoDTO> enderecos,
+        @NotNull @Size(max = 5, message = "Máximo de 5 modalidades por cliente.")
+        List<Long> modalidadeIds
 ) {}

@@ -1,6 +1,7 @@
 package com.alebarre.cadastro_clientes.security;
 
 import org.springframework.context.annotation.*;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.*;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -66,9 +67,19 @@ public class SecurityConfig {
                         .accessDeniedHandler(accessDeniedHandler())
                 )
                 .authorizeHttpRequests(auth -> auth
+                        // públicos
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
-                        .anyRequest().authenticated()
+
+                        // modalidades: requer usuário autenticado (role USER ou ADMIN)
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/modalidades/**")
+                        .hasAnyRole("USER","ADMIN")
+
+                        // demais APIs exigem autenticação
+                        .requestMatchers("/api/**").authenticated()
+
+                        // qualquer outra rota fora de /api pode ficar livre
+                        .anyRequest().permitAll()
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();

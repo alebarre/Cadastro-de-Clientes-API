@@ -5,6 +5,7 @@ import com.alebarre.cadastro_clientes.domain.Cliente;
 import com.alebarre.cadastro_clientes.domain.Endereco;
 import com.alebarre.cadastro_clientes.repository.ClienteRepository;
 
+import com.alebarre.cadastro_clientes.repository.ModalidadeRepository;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ValidationException;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -17,8 +18,12 @@ import java.util.stream.Collectors;
 @Service
 public class ClienteService {
     private final ClienteRepository clienteRepository;
+    private final ModalidadeRepository modalidadeRepository;
 
-    public ClienteService(ClienteRepository clienteRepository) { this.clienteRepository = clienteRepository; }
+    public ClienteService(ClienteRepository clienteRepository, ModalidadeRepository modalidadeRepository) {
+        this.clienteRepository = clienteRepository;
+        this.modalidadeRepository = modalidadeRepository;
+    }
 
     public List<ClienteSummaryDTO> list() {
         return clienteRepository.findAll().stream().map(c -> {
@@ -116,9 +121,17 @@ public class ClienteService {
             e.setCep(d.cep());
             return e;
         }).toList();
-
         c.setEnderecos(ends);
+
+        // Modalidades ---
+        // permite 0..5 (null tratado como vazio)
+        List<Long> ids = (req.modalidadeIds() == null) ? Collections.emptyList() : req.modalidadeIds();
+
+        validarModalidades(ids);
+        c.setModalidades(carregarModalidades(ids));
+
         return c;
+
     }
 
     private ClienteResponseDTO toResponse(Cliente c) {
@@ -132,5 +145,32 @@ public class ClienteService {
         ).toList();
 
         return new ClienteResponseDTO(c.getId(), c.getNome(), c.getEmail(), c.getTelefone(), c.getCpf(), ends, mods);
+    }
+
+    private void validarModalidades(List<Long> ids) {
+        if (ids == null) return; // trate null como "nenhuma selecionada"
+        // limite já está no DTO com @Size(max=5), mas mantemos robustez aqui:
+        if (ids.size() > 5) {
+            throw new ValidationException("Máximo de 5 modalidades por cliente.");
+        }
+        // duplicados
+        Set<Long> distintos = new HashSet<>(ids);
+        if (distintos.size() != ids.size()) {
+            throw new ValidationException("Modalidades duplicadas não são permitidas.");
+        }
+        // existência
+        long count = modalidadeRepository.countByIdIn(distintos); // veja nota abaixo
+        if (count != distintos.size()) {
+            throw new ValidationException("Uma ou mais modalidades não existem.");
+        }
+    }
+
+    /**
+     * Carrega e retorna as Modalidades correspondentes aos IDs.
+     * Pré-condição: validarModalidades(ids) já chamada.
+     */
+    private Set<com.alebarre.cadastro_clientes.domain.Modalidade> carregarModalidades(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) return Collections.emptySet();
+        return new HashSet<>(modalidadeRepository.findAllById(ids));
     }
 }

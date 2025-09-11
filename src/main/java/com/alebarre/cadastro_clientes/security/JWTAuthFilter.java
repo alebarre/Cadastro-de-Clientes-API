@@ -43,4 +43,16 @@ public class JWTAuthFilter extends OncePerRequestFilter {
         }
         chain.doFilter(req, res);
     }
+
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        // Rotas realmente públicas são puladas:
+        return "OPTIONS".equalsIgnoreCase(request.getMethod())
+                || path.startsWith("/api/auth/")
+                || path.startsWith("/actuator/")
+                || path.equals("/error")
+                || path.startsWith("/v3/api-docs/")
+                || path.startsWith("/swagger-ui/");
+    }
 }
