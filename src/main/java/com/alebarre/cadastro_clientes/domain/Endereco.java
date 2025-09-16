@@ -23,6 +23,7 @@ public class Endereco {
     @NotBlank private String cidade;
     @NotBlank @Size(min=2,max=2) private String uf;
     @NotBlank @Pattern(regexp="\\d{8}") private String cep; // 8 dígitos
+    String Pais;
 
     @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "cliente_id")

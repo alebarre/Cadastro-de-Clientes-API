@@ -12,7 +12,8 @@ public record EnderecoDTO(
         String bairro,
         String numero,
         String complemento,
-        String cep
+        String cep,
+        String pais
 ) {
     public static EnderecoDTO fromEntity(Endereco e) {
         return new EnderecoDTO(
@@ -23,7 +24,8 @@ public record EnderecoDTO(
                 e.getBairro(),
                 e.getNumero(),
                 e.getComplemento(),
-                e.getCep()
+                e.getCep(),
+                e.getPais()
         );
     }
 
@@ -37,6 +39,7 @@ public record EnderecoDTO(
         e.setBairro(this.bairro);
         e.setCidade(this.cidade);
         e.setUf(this.uf);
+        e.setPais(this.pais);
         return e;
     }
 

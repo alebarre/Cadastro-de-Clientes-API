@@ -119,6 +119,8 @@ public class ClienteService {
             e.setCidade(d.cidade());
             e.setUf(d.uf().toUpperCase());
             e.setCep(d.cep());
+            e.setPais(d.pais());
+            e.setCliente(c);
             return e;
         }).toList();
         c.setEnderecos(ends);
@@ -137,7 +139,7 @@ public class ClienteService {
     private ClienteResponseDTO toResponse(Cliente c) {
         var ends = c.getEnderecos().stream().map(e ->
                 new EnderecoDTO(e.getId(), e.getCidade(), e.getLogradouro(), e.getUf(), e.getBairro(), e.getNumero(), e.getComplemento(),
-                        e.getCep())
+                        e.getCep(), e.getPais())
         ).toList();
 
         var mods = c.getModalidades().stream().map(e ->
