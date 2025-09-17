@@ -1,5 +1,6 @@
 package com.alebarre.cadastro_clientes.DTO;
 
+import java.time.LocalDate;
 import java.util.List;
 
 public record ClienteResponseDTO(
@@ -8,6 +9,7 @@ public record ClienteResponseDTO(
         String email,
         String telefone,
         String cpf,
+        LocalDate dataNascimento,
         List<EnderecoDTO> enderecos,
         List<ModalidadeDTO> modalidades
 ) {}

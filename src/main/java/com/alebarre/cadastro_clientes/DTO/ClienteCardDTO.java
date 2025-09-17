@@ -4,6 +4,7 @@ import com.alebarre.cadastro_clientes.domain.Cliente;
 import com.alebarre.cadastro_clientes.domain.Endereco;
 import com.alebarre.cadastro_clientes.domain.Modalidade;
 
+import java.time.LocalDate;
 import java.util.List;
 
 public record ClienteCardDTO(
@@ -12,7 +13,8 @@ public record ClienteCardDTO(
         String email,
         String telefone,
         List<EnderecoDTO> enderecos,
-        List<ModalidadeDTO> modalidades
+        List<ModalidadeDTO> modalidades,
+        LocalDate dataNascimento
 ) {
     public static ClienteCardDTO fromEntity(Cliente c) {
         var ends = c.getEnderecos() == null ? List.<EnderecoDTO>of()
@@ -20,7 +22,7 @@ public record ClienteCardDTO(
         var mods = c.getModalidades() == null ? List.<ModalidadeDTO>of()
                 : c.getModalidades().stream().map(ModalidadeDTO::fromEntity).toList();
         return new ClienteCardDTO(
-                c.getId(), c.getNome(), c.getEmail(), c.getTelefone(), ends, mods
+                c.getId(), c.getNome(), c.getEmail(), c.getTelefone(), ends, mods, c.getDataNascimento()
         );
     }
 }

@@ -7,6 +7,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.LocalDate;
 import java.util.*;
 
 @Getter
@@ -27,6 +28,9 @@ public class Cliente {
     private String telefone;
 
     private String cpf; // opcional
+
+    @Past(message = "Data de nascimento deve estar no passado")
+    private LocalDate dataNascimento;
 
     @OneToMany(mappedBy = "cliente", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Endereco> enderecos = new ArrayList<>();

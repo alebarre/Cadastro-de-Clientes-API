@@ -3,6 +3,7 @@ package com.alebarre.cadastro_clientes.DTO;
 
 import com.alebarre.cadastro_clientes.domain.Cliente;
 
+import java.time.LocalDate;
 import java.util.List;
 
 public record ClienteSummaryDTO(
@@ -11,7 +12,8 @@ public record ClienteSummaryDTO(
         String email,
         String telefone,
         String enderecosResumo,      // cidades separadas por " | "
-        int quantidadeModalidades
+        int quantidadeModalidades,
+        LocalDate dataNascimento
 ) {
     public static ClienteSummaryDTO fromEntity(Cliente c) {
         // monta o resumo de cidades (máx. 2, separados por " | ")
@@ -33,7 +35,8 @@ public record ClienteSummaryDTO(
                 c.getEmail(),
                 c.getTelefone(),
                 resumo,
-                qModal
+                qModal,
+                c.getDataNascimento()
         );
     }
 }
