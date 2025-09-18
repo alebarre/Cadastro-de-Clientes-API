@@ -75,6 +75,9 @@ public class SecurityConfig {
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/modalidades/**")
                         .hasAnyRole("USER","ADMIN")
 
+                        // usuarios: requer usuário autenticado (ADMIN)
+                        .requestMatchers("/api/usuarios/**").hasRole("ADMIN")
+
                         // demais APIs exigem autenticação
                         .requestMatchers("/api/**").authenticated()
 
