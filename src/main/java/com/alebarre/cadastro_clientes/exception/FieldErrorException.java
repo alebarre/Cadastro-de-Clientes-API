@@ -5,7 +5,7 @@ import java.util.Map;
 public class FieldErrorException extends RuntimeException {
     private final Map<String,String> fieldErrors;
 
-    private FieldErrorException(String message, Map<String,String> fieldErrors) {
+    public FieldErrorException(String message, Map<String,String> fieldErrors) {
         super(message);
         this.fieldErrors = fieldErrors;
     }

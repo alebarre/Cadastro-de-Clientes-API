@@ -3,20 +3,18 @@ package com.alebarre.cadastro_clientes.service;
 import com.alebarre.cadastro_clientes.domain.AppUser;
 import com.alebarre.cadastro_clientes.domain.PasswordResetToken;
 import com.alebarre.cadastro_clientes.domain.VerificationToken;
-import com.alebarre.cadastro_clientes.exception.ApiExceptionHandler;
+import com.alebarre.cadastro_clientes.exception.FieldErrorException;
 import com.alebarre.cadastro_clientes.repository.AppUserRepository;
 import com.alebarre.cadastro_clientes.repository.PasswordResetTokenRepository;
 import com.alebarre.cadastro_clientes.repository.VerificationTokenRepository;
-import jakarta.validation.ValidationException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.Map;
-import java.util.Random;
+import java.util.*;
 
 @Service
 public class AuthExtrasService {
@@ -25,32 +23,42 @@ public class AuthExtrasService {
     private final PasswordResetTokenRepository rRepo;
     private final EmailService mail;
     private final PasswordEncoder encoder;
-    private final ApiExceptionHandler apiExceptionHandler;
+    private final PasswordPolicyService policy;
 
     private final int signupTtlMin;
     private final int resetTtlMin;
     private final int resetMaxAttempts;
-
     private final int cooldownSeconds;
 
-    private final PasswordPolicyService policy;
-
     public AuthExtrasService(
-            AppUserRepository userRepo, VerificationTokenRepository vRepo, PasswordResetTokenRepository rRepo,
-            EmailService mail, PasswordEncoder encoder, ApiExceptionHandler apiExceptionHandler,
+            AppUserRepository userRepo,
+            VerificationTokenRepository vRepo,
+            PasswordResetTokenRepository rRepo,
+            EmailService mail,
+            PasswordEncoder encoder,
+            PasswordPolicyService policy,
             @Value("${app.signup.code.ttl-min:15}") int signupTtlMin,
             @Value("${app.reset.code.ttl-min:15}") int resetTtlMin,
             @Value("${app.reset.max-attempts:5}") int resetMaxAttempts,
-            @Value("${app.code.cooldown-seconds:60}") int cooldownSeconds, PasswordPolicyService policy
+            @Value("${app.code.cooldown-seconds:60}") int cooldownSeconds
     ) {
-        this.userRepo = userRepo; this.vRepo = vRepo; this.rRepo = rRepo;
-        this.mail = mail; this.encoder = encoder;
-        this.apiExceptionHandler = apiExceptionHandler;
+        this.userRepo = userRepo;
+        this.vRepo = vRepo;
+        this.rRepo = rRepo;
+        this.mail = mail;
+        this.encoder = encoder;
+        this.policy = policy;
         this.signupTtlMin = signupTtlMin;
         this.resetTtlMin = resetTtlMin;
         this.resetMaxAttempts = resetMaxAttempts;
         this.cooldownSeconds = cooldownSeconds;
-        this.policy = policy;
+    }
+
+    private Instant now() { return Instant.now(); }
+
+    private long secondsSince(Instant createdAt) {
+        if (createdAt == null) return Long.MAX_VALUE; // se nulo, considera sem cooldown
+        return Duration.between(createdAt, now()).getSeconds();
     }
 
     private String genCode6() {
@@ -59,12 +67,16 @@ public class AuthExtrasService {
 
     // ===== Register =====
     public void register(String email, String rawPassword) {
+        // regras de senha → erro de campo "password"
         var ruleErrors = policy.validateRules(rawPassword);
         if (!ruleErrors.isEmpty()) {
-            throw apiExceptionHandler.validation("Senha inválida", Map.of("password", String.join(" | ", ruleErrors)));
+            throw new FieldErrorException("Senha inválida", Map.of("password", String.join(" | ", ruleErrors)));
         }
-        if (userRepo.findByUsername(email).isPresent())
-            throw new ValidationException("Email já cadastrado");
+
+        // e-mail já cadastrado → erro de campo "email"
+        if (userRepo.findByUsername(email).isPresent()) {
+            throw new FieldErrorException("Email já cadastrado", Map.of("email", "Este e-mail já está em uso"));
+        }
 
         var u = new AppUser();
         u.setUsername(email);
@@ -81,7 +93,9 @@ public class AuthExtrasService {
         var tok = new VerificationToken();
         tok.setEmail(email);
         tok.setCode(code);
-        tok.setExpiresAt(Instant.now().plus(signupTtlMin, ChronoUnit.MINUTES));
+        tok.setCreatedAt(now()); // garante createdAt
+        tok.setExpiresAt(now().plus(signupTtlMin, ChronoUnit.MINUTES));
+        tok.setUsed(false);
         vRepo.save(tok);
 
         mail.sendHtml(email, "Verifique seu cadastro", buildVerificationEmail(code, signupTtlMin));
@@ -89,12 +103,13 @@ public class AuthExtrasService {
 
     // --- RESEND VERIFY ---
     public void resendVerification(String email) {
-        // precisa existir o usuário (pode estar disabled)
-        userRepo.findByUsername(email).orElseThrow(() -> new jakarta.validation.ValidationException("Email não cadastrado"));
+        userRepo.findByUsername(email).orElseThrow(() ->
+                new FieldErrorException("Email não cadastrado", Map.of("email", "E-mail não localizado"))
+        );
 
         var last = vRepo.findTopByEmailAndUsedFalseOrderByIdDesc(email).orElse(null);
         if (last != null) {
-            long since = java.time.Duration.between(last.getCreatedAt(), Instant.now()).getSeconds();
+            long since = secondsSince(last.getCreatedAt());
             if (since < cooldownSeconds) {
                 long remaining = cooldownSeconds - since;
                 throw tooManyRequests("Aguarde " + remaining + "s para reenviar.");
@@ -103,17 +118,19 @@ public class AuthExtrasService {
             last.setUsed(true);
             vRepo.save(last);
         }
-        // emite novo token e envia
+
         sendVerification(email);
     }
 
     // --- RESEND RESET ---
     public void resendReset(String email) {
-        userRepo.findByUsername(email).orElseThrow(() -> new jakarta.validation.ValidationException("Email não cadastrado"));
+        userRepo.findByUsername(email).orElseThrow(() ->
+                new FieldErrorException("Email não cadastrado", Map.of("email", "E-mail não localizado"))
+        );
 
         var last = rRepo.findTopByEmailAndUsedFalseOrderByIdDesc(email).orElse(null);
         if (last != null) {
-            long since = java.time.Duration.between(last.getCreatedAt(), Instant.now()).getSeconds();
+            long since = secondsSince(last.getCreatedAt());
             if (since < cooldownSeconds) {
                 long remaining = cooldownSeconds - since;
                 throw tooManyRequests("Aguarde " + remaining + "s para reenviar.");
@@ -121,19 +138,20 @@ public class AuthExtrasService {
             last.setUsed(true);
             rRepo.save(last);
         }
-        // emite novo token e envia
+
         forgot(email); // reaproveita fluxo que já cria e manda email
     }
 
     public void verify(String email, String code) {
         var tok = vRepo.findTopByEmailAndUsedFalseOrderByIdDesc(email)
-                .orElseThrow(() -> new ValidationException("Código não solicitado"));
+                .orElseThrow(() -> new IllegalArgumentException("Código não solicitado"));
 
-        if (tok.isUsed() || tok.getExpiresAt().isBefore(Instant.now()) || !tok.getCode().equals(code))
-            throw new ValidationException("Código inválido ou expirado");
+        if (tok.isUsed() || tok.getExpiresAt().isBefore(now()) || !tok.getCode().equals(code)) {
+            throw new IllegalArgumentException("Código inválido ou expirado");
+        }
 
         var u = userRepo.findByUsername(email)
-                .orElseThrow(() -> new ValidationException("Usuário não encontrado"));
+                .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado"));
 
         u.setEnabled(true);
         userRepo.save(u);
@@ -143,38 +161,52 @@ public class AuthExtrasService {
 
     // ===== Forgot / Reset =====
     public void forgot(String email) {
-        userRepo.findByUsername(email).orElseThrow(() -> new ValidationException("Email não cadastrado"));
+        userRepo.findByUsername(email).orElseThrow(() ->
+                new FieldErrorException("Email não cadastrado", Map.of("email", "E-mail não localizado"))
+        );
 
         var code = genCode6();
         var tok = new PasswordResetToken();
         tok.setEmail(email);
         tok.setCode(code);
-        tok.setExpiresAt(Instant.now().plus(resetTtlMin, ChronoUnit.MINUTES));
+        tok.setCreatedAt(now()); // garante createdAt
+        tok.setExpiresAt(now().plus(resetTtlMin, ChronoUnit.MINUTES));
+        tok.setUsed(false);
+        tok.setAttempts(0);
         rRepo.save(tok);
 
         mail.sendHtml(email, "Redefinição de senha", buildResetEmail(code, resetTtlMin));
     }
 
     public void reset(String email, String code, String newPassword) {
-        // ... valida código ...
+        // regras + histórico → erro de campo "newPassword"
         var ruleErrors = policy.validateRules(newPassword);
         var historyErrors = policy.validateHistory(email, newPassword);
         var all = new ArrayList<String>(); all.addAll(ruleErrors); all.addAll(historyErrors);
         if (!all.isEmpty()) {
-            throw apiExceptionHandler.validation("Senha inválida", Map.of("newPassword", String.join(" | ", all)));
+            throw new FieldErrorException("Senha inválida", Map.of("newPassword", String.join(" | ", all)));
         }
-        var tok = rRepo.findTopByEmailAndUsedFalseOrderByIdDesc(email)
-                .orElseThrow(() -> new ValidationException("Código não solicitado"));
 
-        if (tok.isUsed() || tok.getExpiresAt().isBefore(Instant.now()) || !tok.getCode().equals(code)) {
-            tok.setAttempts(tok.getAttempts()+1);
-            rRepo.save(tok);
-            if (tok.getAttempts() >= resetMaxAttempts) tok.setUsed(true);
-            throw new ValidationException("Código inválido ou expirado");
+        var tok = rRepo.findTopByEmailAndUsedFalseOrderByIdDesc(email)
+                .orElseThrow(() -> new IllegalArgumentException("Código não solicitado"));
+
+        // valida código/expiração
+        boolean invalid = tok.isUsed()
+                || tok.getExpiresAt().isBefore(now())
+                || !Objects.equals(tok.getCode(), code);
+
+        if (invalid) {
+            tok.setAttempts(tok.getAttempts() + 1);
+            if (tok.getAttempts() >= resetMaxAttempts) {
+                tok.setUsed(true);
+            }
+            rRepo.save(tok); // <- salva attempts/used atualizados
+            throw new IllegalArgumentException("Código inválido ou expirado");
         }
 
         var u = userRepo.findByUsername(email)
-                .orElseThrow(() -> new ValidationException("Usuário não encontrado"));
+                .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado"));
+
         // grava histórico ANTES de trocar
         policy.record(email, u.getPassword());
         u.setPassword(encoder.encode(newPassword));
@@ -222,14 +254,11 @@ public class AuthExtrasService {
     }
 
     private RuntimeException tooManyRequests(String msg) {
-        // você pode ter um @ControllerAdvice para converter isso em HTTP 429
         return new TooManyRequestsException(msg);
     }
 
-    // exception simples
+    // exception simples -> mapeada para 429 no ApiExceptionHandler
     public static class TooManyRequestsException extends RuntimeException {
         public TooManyRequestsException(String m) { super(m); }
     }
-
 }
-
