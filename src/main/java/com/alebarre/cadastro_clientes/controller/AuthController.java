@@ -5,6 +5,7 @@ import com.alebarre.cadastro_clientes.DTO.AuthRequestDTO;
 import com.alebarre.cadastro_clientes.DTO.AuthResponseDTO;
 import com.alebarre.cadastro_clientes.DTO.RefreshRequestDTO;
 import com.alebarre.cadastro_clientes.DTO.RefreshResponseDTO;
+import com.alebarre.cadastro_clientes.exception.TooManyLoginAttemptsException;
 import com.alebarre.cadastro_clientes.security.JWTService;
 import com.alebarre.cadastro_clientes.service.RefreshTokenService;
 import org.springframework.http.ResponseEntity;
@@ -22,6 +23,7 @@ public class AuthController {
     private final UserDetailsService uds;
     private final JWTService jwt;
     private final RefreshTokenService rts;
+    private int attemptsCount = 0;
 
     public AuthController(AuthenticationManager am, UserDetailsService uds, JWTService jwt, RefreshTokenService rts) {
         this.authManager = am; this.uds = uds; this.jwt = jwt; this.rts = rts;
@@ -36,8 +38,14 @@ public class AuthController {
                     String.join(",", user.getAuthorities().stream().map(a -> a.getAuthority()).toList()));
             long expiresIn = jwt.getExpirationSeconds(); // <—
             var rt = rts.issue(user.getUsername());
+            attemptsCount = 0;
             return ResponseEntity.ok(new AuthResponseDTO(rt.getToken(), access, expiresIn, user.getUsername()));
         } catch (BadCredentialsException e) {
+            attemptsCount++;
+            if (attemptsCount >= 10) {
+                attemptsCount = 0;
+                throw new TooManyLoginAttemptsException(60);
+            }
             return ResponseEntity.status(401).body(Map.of(
                     "status", 401, "error","Unauthorized", "message","Credenciais inválidas", "timestamp", Instant.now().toString()
             ));

@@ -2,12 +2,14 @@ package com.alebarre.cadastro_clientes.exception;
 
 import com.alebarre.cadastro_clientes.service.AuthExtrasService;
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.*;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -53,12 +55,21 @@ public class ApiExceptionHandler {
         return ResponseEntity.badRequest().body(body);
     }
 
-    @ExceptionHandler(AuthExtrasService.TooManyRequestsException.class)
-    public ResponseEntity<?> handleTooMany(AuthExtrasService.TooManyRequestsException ex) {
-        return ResponseEntity.status(429).body(Map.of(
-                "status", 429, "error", "Too Many Requests",
-                "message", ex.getMessage(), "timestamp", Instant.now().toString()
-        ));
+    @ExceptionHandler(TooManyLoginAttemptsException.class)
+    public ResponseEntity<Object> handleTooMany(TooManyLoginAttemptsException ex,
+                                                HttpServletRequest req) {
+        int seconds = ex.getRetryAfterSeconds();
+        var body = Map.of(
+                "title", "Too Many Requests",
+                "status", 429,
+                "detail", ex.getMessage(),
+                "retry_after", seconds,
+                "path", req.getRequestURI(),
+                "timestamp", OffsetDateTime.now().toString()
+        );
+        return ResponseEntity.status(429)
+                .header("Retry-After", String.valueOf(seconds))
+                .body(body);
     }
 
     // (Opcional) catch-all para outras RuntimeException de validação sem field map
