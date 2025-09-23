@@ -1,5 +1,6 @@
 package com.alebarre.cadastro_clientes.service;
 
+import com.alebarre.cadastro_clientes.DTO.AppUserDTO;
 import com.alebarre.cadastro_clientes.domain.AppUser;
 import com.alebarre.cadastro_clientes.domain.PasswordResetToken;
 import com.alebarre.cadastro_clientes.domain.VerificationToken;
@@ -7,6 +8,7 @@ import com.alebarre.cadastro_clientes.exception.FieldErrorException;
 import com.alebarre.cadastro_clientes.repository.AppUserRepository;
 import com.alebarre.cadastro_clientes.repository.PasswordResetTokenRepository;
 import com.alebarre.cadastro_clientes.repository.VerificationTokenRepository;
+import org.hibernate.validator.internal.constraintvalidators.bv.notempty.NotEmptyValidatorForArray;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -40,8 +42,7 @@ public class AuthExtrasService {
             @Value("${app.signup.code.ttl-min:15}") int signupTtlMin,
             @Value("${app.reset.code.ttl-min:15}") int resetTtlMin,
             @Value("${app.reset.max-attempts:5}") int resetMaxAttempts,
-            @Value("${app.code.cooldown-seconds:60}") int cooldownSeconds
-    ) {
+            @Value("${app.code.cooldown-seconds:60}") int cooldownSeconds) {
         this.userRepo = userRepo;
         this.vRepo = vRepo;
         this.rRepo = rRepo;
@@ -66,25 +67,29 @@ public class AuthExtrasService {
     }
 
     // ===== Register =====
-    public void register(String email, String rawPassword) {
-        // regras de senha → erro de campo "password"
+    public void register(String nome, String email, String rawPassword) {
+        // regras de senha -> erro no campo "password"
         var ruleErrors = policy.validateRules(rawPassword);
         if (!ruleErrors.isEmpty()) {
-            throw new FieldErrorException("Senha inválida", Map.of("password", String.join(" | ", ruleErrors)));
+            throw new FieldErrorException("Senha inválida",
+                    Map.of("password", String.join(" | ", ruleErrors)));
         }
 
-        // e-mail já cadastrado → erro de campo "email"
-        if (userRepo.findByUsername(email).isPresent()) {
-            throw new FieldErrorException("Email já cadastrado", Map.of("email", "Este e-mail já está em uso"));
+        // unicidade
+        if (userRepo.existsByUsername(email) || userRepo.existsByEmail(email)) {
+            throw new FieldErrorException("Email já cadastrado",
+                    Map.of("email", "Este e-mail já está em uso"));
         }
 
         var u = new AppUser();
-        u.setUsername(email);
+        u.setUsername(email);                 // e-mail como username
         u.setPassword(encoder.encode(rawPassword));
-        u.setRoles("ROLE_USER");
+        u.setNome(nome);                      // agora vem do front
+        u.setEmail(email);
         u.setEnabled(false);
-        userRepo.save(u);
+        u.setRoles("ROLE_USER");
 
+        userRepo.save(u);
         sendVerification(email);
     }
 

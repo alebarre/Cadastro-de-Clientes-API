@@ -2,6 +2,7 @@ package com.alebarre.cadastro_clientes.controller;
 
 import com.alebarre.cadastro_clientes.DTO.*;
 import com.alebarre.cadastro_clientes.service.AuthExtrasService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,9 +15,9 @@ public class AuthExtendedController {
     public AuthExtendedController(AuthExtrasService svc) { this.svc = svc; }
 
     @PostMapping("/register")
-    public ResponseEntity<?> register(@RequestBody RegisterRequestDTO r) {
-        svc.register(r.email(), r.password());
-        return ResponseEntity.ok(Map.of("message","Cadastro criado. Verifique seu e-mail."));
+    public ResponseEntity<Map<String, String>> register(@Valid @RequestBody RegisterRequestDTO body) {
+        svc.register(body.nome(), body.email(), body.password());
+        return ResponseEntity.ok(Map.of("message", "Verifique seu e-mail para confirmar o cadastro."));
     }
 
     @PostMapping("/verify")
