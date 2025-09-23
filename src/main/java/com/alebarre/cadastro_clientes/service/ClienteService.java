@@ -92,6 +92,11 @@ public class ClienteService {
                 .toList();
     }
 
+    @Transactional
+    public Boolean getByEmail(String email) {
+        return clienteRepository.existsByEmail(email);
+    }
+
     @Transactional(readOnly = true)
     public ClienteCardDTO obterCard(Long id) {
         var c = clienteRepository.findById(id)

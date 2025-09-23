@@ -25,6 +25,9 @@ public class ClienteController {
     @GetMapping("/{id}")
     public ClienteResponseDTO get(@PathVariable Long id) { return service.find(id); }
 
+    @GetMapping("/email/{email}")
+    public Boolean getByMail(@PathVariable String email) { return service.getByEmail(email); }
+
     @PostMapping
     public ResponseEntity<ClienteResponseDTO> create(@RequestBody @Valid ClienteRequestDTO req) {
         var saved = service.create(req);

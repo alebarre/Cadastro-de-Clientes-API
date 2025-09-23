@@ -69,6 +69,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // públicos
                         .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/apli/clientes/email/**").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
 
                         // modalidades: requer usuário autenticado (role USER ou ADMIN)
