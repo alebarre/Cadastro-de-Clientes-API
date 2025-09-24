@@ -5,6 +5,7 @@ import com.alebarre.cadastro_clientes.DTO.ClienteResponseDTO;
 import com.alebarre.cadastro_clientes.DTO.ClienteSummaryDTO;
 import com.alebarre.cadastro_clientes.service.ClienteService;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -20,7 +21,15 @@ public class ClienteController {
     public ClienteController(ClienteService service) { this.service = service; }
 
     @GetMapping
-    public List<ClienteSummaryDTO> list() { return service.list(); }
+    public Page<ClienteSummaryDTO> listPaged(
+            @RequestParam(value = "page", required = false) Integer page,
+            @RequestParam(value = "size", required = false) Integer size,
+            @RequestParam(value = "sort", required = false, defaultValue = "nome") String sort,
+            @RequestParam(value = "dir",  required = false, defaultValue = "asc") String dir,
+            @RequestParam(value = "q",    required = false) String q
+    ) {
+        return service.listPaged(page, size, sort, dir, q);
+    }
 
     @GetMapping("/{id}")
     public ClienteResponseDTO get(@PathVariable Long id) { return service.find(id); }

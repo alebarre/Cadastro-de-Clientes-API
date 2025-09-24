@@ -8,6 +8,10 @@ import com.alebarre.cadastro_clientes.repository.ClienteRepository;
 import com.alebarre.cadastro_clientes.repository.ModalidadeRepository;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ValidationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +28,8 @@ public class ClienteService {
         this.clienteRepository = clienteRepository;
         this.modalidadeRepository = modalidadeRepository;
     }
+
+
 
     public List<ClienteSummaryDTO> list() {
         return clienteRepository.findAll().stream().map(c -> {
@@ -51,6 +57,21 @@ public class ClienteService {
                     c.getDataNascimento()
             );
         }).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public Page<ClienteSummaryDTO> listPaged(Integer page, Integer size, String sortBy, String dir, String q) {
+        int p = page == null || page < 0 ? 0 : page;
+        int s = size == null || size <= 0 ? 10 : size;
+        String prop = (sortBy == null || sortBy.isBlank()) ? "nome" : sortBy;
+        Sort.Direction d = "desc".equalsIgnoreCase(dir) ? Sort.Direction.DESC : Sort.Direction.ASC;
+        Pageable pageable = PageRequest.of(p, s, Sort.by(d, prop));
+
+        Page<Cliente> result = (q == null || q.isBlank())
+                ? clienteRepository.findAll(pageable)
+                : clienteRepository.findByNomeContainingIgnoreCaseOrEmailContainingIgnoreCase(q, q, pageable);
+
+        return result.map(ClienteSummaryDTO::fromEntity);
     }
 
     public ClienteResponseDTO find(Long id) {

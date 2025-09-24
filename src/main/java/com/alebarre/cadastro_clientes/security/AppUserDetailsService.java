@@ -25,7 +25,7 @@ public class AppUserDetailsService implements UserDetailsService {
                 .withUsername(u.getUsername())
                 .password(u.getPassword())
                 .authorities(authorities)
-                .disabled(!u.isEnabled())      // reflete o enabled do banco
+                .disabled(!u.isEnabled()) // reflete o enabled do banco
                 .accountExpired(false)
                 .accountLocked(false)
                 .credentialsExpired(false)
