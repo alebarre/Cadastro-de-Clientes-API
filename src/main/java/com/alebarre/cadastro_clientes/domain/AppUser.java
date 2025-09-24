@@ -33,8 +33,5 @@ public class AppUser {
     private String telefone;
 
     private String roles = "ROLE_USER, ROLE_ADMIN";
-    private boolean enabled = true;
-
-    public boolean isEnabled() { return enabled; }
-    public void setEnabled(boolean enabled) { this.enabled = enabled; }
+    private boolean enabled;
 }
