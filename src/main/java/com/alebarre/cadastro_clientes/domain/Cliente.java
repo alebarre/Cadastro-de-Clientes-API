@@ -32,6 +32,9 @@ public class Cliente {
     @Past(message = "Data de nascimento deve estar no passado")
     private LocalDate dataNascimento;
 
+    @Column(unique = true)
+    private boolean enabled;
+
     @OneToMany(mappedBy = "cliente", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Endereco> enderecos = new ArrayList<>();
 
