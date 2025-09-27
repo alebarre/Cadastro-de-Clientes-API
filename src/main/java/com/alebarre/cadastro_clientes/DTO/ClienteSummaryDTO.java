@@ -9,6 +9,7 @@ import java.util.List;
 public record ClienteSummaryDTO(
         Long id,
         String nome,
+        Boolean enabled,
         String email,
         String telefone,
         String enderecosResumo,      // cidades separadas por " | "
@@ -32,6 +33,7 @@ public record ClienteSummaryDTO(
         return new ClienteSummaryDTO(
                 c.getId(),
                 c.getNome(),
+                c.isEnabled(),
                 c.getEmail(),
                 c.getTelefone(),
                 resumo,

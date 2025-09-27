@@ -9,6 +9,9 @@ import java.util.List;
 
 public record ClienteRequestDTO(
         @NotBlank @Size(min=3,max=120) String nome,
+
+        Boolean enabled,
+
         @NotBlank @Email String email,
         @Pattern(regexp="\\d{10,11}", message="Telefone deve ter 10 ou 11 dígitos")
         String telefone,

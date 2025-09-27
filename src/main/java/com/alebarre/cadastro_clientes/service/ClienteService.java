@@ -50,6 +50,7 @@ public class ClienteService {
             return new ClienteSummaryDTO(
                     c.getId(),
                     c.getNome(),
+                    c.isEnabled(),
                     c.getEmail(),
                     c.getTelefone(),
                     enderecosResumo,
@@ -134,6 +135,7 @@ public class ClienteService {
 
         c.setNome(req.nome());
         c.setEmail(req.email());
+        c.setEnabled(req.enabled());
         c.setTelefone(req.telefone());
         c.setCpf(req.cpf());
         c.setDataNascimento(req.dataNascimento());
@@ -174,7 +176,7 @@ public class ClienteService {
                 new ModalidadeDTO(e.getId(), e.getNome(), e.getDescricao(), e.getValor())
         ).toList();
 
-        return new ClienteResponseDTO(c.getId(), c.getNome(), c.getEmail(), c.getTelefone(), c.getCpf(), c.getDataNascimento(), ends, mods);
+        return new ClienteResponseDTO(c.getId(), c.getNome(), c.isEnabled(), c.getEmail(), c.getTelefone(), c.getCpf(), c.getDataNascimento(), ends, mods);
     }
 
     private void validarModalidades(List<Long> ids) {

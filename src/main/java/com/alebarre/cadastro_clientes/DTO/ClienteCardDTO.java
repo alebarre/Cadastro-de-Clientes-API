@@ -10,6 +10,7 @@ import java.util.List;
 public record ClienteCardDTO(
         Long id,
         String nome,
+        Boolean enabled,
         String email,
         String telefone,
         List<EnderecoDTO> enderecos,
@@ -22,7 +23,7 @@ public record ClienteCardDTO(
         var mods = c.getModalidades() == null ? List.<ModalidadeDTO>of()
                 : c.getModalidades().stream().map(ModalidadeDTO::fromEntity).toList();
         return new ClienteCardDTO(
-                c.getId(), c.getNome(), c.getEmail(), c.getTelefone(), ends, mods, c.getDataNascimento()
+                c.getId(), c.getNome(), c.isEnabled(), c.getEmail(), c.getTelefone(), ends, mods, c.getDataNascimento()
         );
     }
 }

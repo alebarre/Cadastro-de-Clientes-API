@@ -22,11 +22,10 @@ public class RelatorioClienteService {
             Integer idadeMin, Integer idadeMax,
             List<Long> modalidadeIds
     ) {
-        // Avalia tri-estado com segurança
+        // Não aceita null - confirmar o tri-estado no GPT
         boolean onlyAtivos   = Boolean.TRUE.equals(ativos)   && !Boolean.TRUE.equals(inativos);
         boolean onlyInativos = Boolean.TRUE.equals(inativos) && !Boolean.TRUE.equals(ativos);
 
-        // Vamos acumular partes e combinar no fim (evita .and sobre null)
         List<Specification<Cliente>> parts = new ArrayList<>();
 
         // Status
@@ -35,7 +34,7 @@ public class RelatorioClienteService {
         } else if (onlyInativos) {
             parts.add((root, q, cb) -> cb.isFalse(root.get("enabled")));
         }
-        // (se ambos true ou ambos null/false → não filtra por status)
+
 
         // Faixa etária (opcional)
         if (idadeMin != null || idadeMax != null) {
